@@ -1,0 +1,255 @@
+zabbix_export:
+  version: '6.0'
+  template_groups:
+    - uuid: 8f7d1e2a3b4c5d6e7f8a9b0c1d2e3f40
+      name: Templates/Virtualization
+  templates:
+    - uuid: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
+      template: 'FusionCompute 8.6 by REST API'
+      name: 'FusionCompute 8.6 by REST API'
+      description: |
+        华为 FusionCompute 8.6.0 监控模板（REST API）。
+        通过外部检查脚本 fusioncompute_monitor.py 采集 VRM 数据。
+        请先在主机上配置以下宏：
+          {$FC.SCRIPT}   - 脚本绝对路径（含 python）
+          {$FC.CONFIG}   - 配置文件绝对路径
+        采集模式默认为 External Check（server 主动调用脚本）。
+      groups:
+        - name: Templates/Virtualization
+      macros:
+        - macro: '{$FC.SCRIPT}'
+          value: '/etc/zabbix/externalscripts/fusioncompute_monitor.py'
+          description: '采集脚本绝对路径'
+        - macro: '{$FC.CONFIG}'
+          value: '/etc/zabbix/externalscripts/fusioncompute.conf'
+          description: '配置文件绝对路径'
+        - macro: '{$FC.HOST.CPU.WARN}'
+          value: '85'
+          description: '主机 CPU 占用率告警阈值(%)'
+        - macro: '{$FC.HOST.MEM.WARN}'
+          value: '85'
+          description: '主机内存占用率告警阈值(%)'
+        - macro: '{$FC.HOST.DISK.WARN}'
+          value: '85'
+          description: '主机磁盘占用率告警阈值(%)'
+        - macro: '{$FC.CLUSTER.CPU.WARN}'
+          value: '85'
+          description: '集群 CPU 占用率告警阈值(%)'
+        - macro: '{$FC.DS.DISK.WARN}'
+          value: '90'
+          description: '数据存储占用率告警阈值(%)'
+
+      items:
+        # ---- 站点 ----
+        - uuid: 00000000000000000000000000000001
+          name: 'FusionCompute: 站点状态'
+          type: EXTERNAL
+          key: 'fc.site.status'
+          history: 7d
+          trends: 365d
+          value_type: CHAR
+          description: 'VRM 站点状态 (normal/fault/...)'
+        - uuid: 00000000000000000000000000000002
+          name: 'FusionCompute: 活动告警总数'
+          type: EXTERNAL
+          key: 'fc.alarm.total'
+          history: 7d
+          trends: 365d
+          value_type: FLOAT
+          units: ''
+          description: '当前活动告警总数'
+        - uuid: 00000000000000000000000000000003
+          name: 'FusionCompute: 紧急告警数'
+          type: EXTERNAL
+          key: 'fc.alarm.level[1]'
+          history: 7d
+          trends: 365d
+          value_type: FLOAT
+          description: '紧急(1级)活动告警数'
+        - uuid: 00000000000000000000000000000004
+          name: 'FusionCompute: 重要告警数'
+          type: EXTERNAL
+          key: 'fc.alarm.level[2]'
+          history: 7d
+          trends: 365d
+          value_type: FLOAT
+          description: '重要(2级)活动告警数'
+        - uuid: 00000000000000000000000000000005
+          name: 'FusionCompute: 次要告警数'
+          type: EXTERNAL
+          key: 'fc.alarm.level[3]'
+          history: 7d
+          trends: 365d
+          value_type: FLOAT
+          description: '次要(3级)活动告警数'
+
+      discovery_rules:
+        # ---- 主机自动发现 ----
+        - uuid: 10000000000000000000000000000001
+          name: 'FusionCompute 主机发现'
+          type: EXTERNAL
+          key: 'fc.discover[hosts]'
+          delay: 1h
+          description: '发现 FusionCompute 站点下所有主机(CNA)'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#HOST.URN}'
+                value: 'urn:'
+                operator: MATCHES_REGEX
+          item_prototypes:
+            - uuid: 11000000000000000000000000000001
+              name: 'Host "{#HOST.NAME}": 状态'
+              type: EXTERNAL
+              key: 'fc.host.status["{#HOST.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              valuemap:
+                name: 'FusionCompute host status'
+              description: '0正常 1初始化 2故障 3未知 4离线 5上电中 6下电中 7重启中'
+            - uuid: 11000000000000000000000000000002
+              name: 'Host "{#HOST.NAME}": CPU占用率'
+              type: EXTERNAL
+              key: 'fc.host.cpu["{#HOST.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+            - uuid: 11000000000000000000000000000003
+              name: 'Host "{#HOST.NAME}": 内存占用率'
+              type: EXTERNAL
+              key: 'fc.host.mem["{#HOST.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+            - uuid: 11000000000000000000000000000004
+              name: 'Host "{#HOST.NAME}": 磁盘占用率'
+              type: EXTERNAL
+              key: 'fc.host.disk["{#HOST.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+            - uuid: 11000000000000000000000000000005
+              name: 'Host "{#HOST.NAME}": 虚拟机数量'
+              type: EXTERNAL
+              key: 'fc.host.vmcount["{#HOST.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+          trigger_prototypes:
+            - uuid: 12000000000000000000000000000001
+              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.status["{#HOST.NAME}"])=2'
+              name: 'Host "{#HOST.NAME}": 状态故障'
+              priority: HIGH
+            - uuid: 12000000000000000000000000000002
+              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.cpu["{#HOST.NAME}"])>{$FC.HOST.CPU.WARN}'
+              name: 'Host "{#HOST.NAME}": CPU占用率超过 {$FC.HOST.CPU.WARN}%'
+              priority: WARNING
+            - uuid: 12000000000000000000000000000003
+              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.mem["{#HOST.NAME}"])>{$FC.HOST.MEM.WARN}'
+              name: 'Host "{#HOST.NAME}": 内存占用率超过 {$FC.HOST.MEM.WARN}%'
+              priority: WARNING
+            - uuid: 12000000000000000000000000000004
+              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.disk["{#HOST.NAME}"])>{$FC.HOST.DISK.WARN}'
+              name: 'Host "{#HOST.NAME}": 磁盘占用率超过 {$FC.HOST.DISK.WARN}%'
+              priority: WARNING
+          graph_prototypes:
+            - uuid: 13000000000000000000000000000001
+              name: 'Host "{#HOST.NAME}": CPU/内存占用率'
+              graph_items:
+                - color: '1A7C11'
+                  item:
+                    host: 'FusionCompute 8.6 by REST API'
+                    key: 'fc.host.cpu["{#HOST.NAME}"]'
+                - color: 'F63100'
+                  item:
+                    host: 'FusionCompute 8.6 by REST API'
+                    key: 'fc.host.mem["{#HOST.NAME}"]'
+
+        # ---- 集群自动发现 ----
+        - uuid: 10000000000000000000000000000002
+          name: 'FusionCompute 集群发现'
+          type: EXTERNAL
+          key: 'fc.discover[clusters]'
+          delay: 1h
+          description: '发现 FusionCompute 站点下所有集群'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#CLUSTER.URN}'
+                value: 'urn:'
+                operator: MATCHES_REGEX
+          item_prototypes:
+            - uuid: 21000000000000000000000000000001
+              name: 'Cluster "{#CLUSTER.NAME}": CPU占用率'
+              type: EXTERNAL
+              key: 'fc.cluster.cpu_usage["{#CLUSTER.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+            - uuid: 21000000000000000000000000000002
+              name: 'Cluster "{#CLUSTER.NAME}": 磁盘占用率'
+              type: EXTERNAL
+              key: 'fc.cluster.logic_disk_usage["{#CLUSTER.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+          trigger_prototypes:
+            - uuid: 22000000000000000000000000000001
+              expression: 'last(/FusionCompute 8.6 by REST API/fc.cluster.cpu_usage["{#CLUSTER.NAME}"])>{$FC.CLUSTER.CPU.WARN}'
+              name: 'Cluster "{#CLUSTER.NAME}": CPU占用率超过 {$FC.CLUSTER.CPU.WARN}%'
+              priority: WARNING
+
+        # ---- 数据存储自动发现 ----
+        - uuid: 10000000000000000000000000000003
+          name: 'FusionCompute 数据存储发现'
+          type: EXTERNAL
+          key: 'fc.discover[datastores]'
+          delay: 1h
+          description: '发现 FusionCompute 站点下所有数据存储'
+          filter:
+            evaltype: AND
+            conditions:
+              - macro: '{#DATASTORE.URN}'
+                value: 'urn:'
+                operator: MATCHES_REGEX
+          item_prototypes:
+            - uuid: 31000000000000000000000000000001
+              name: 'DataStore "{#DATASTORE.NAME}": 占用率'
+              type: EXTERNAL
+              key: 'fc.datastore.disk_usage["{#DATASTORE.NAME}"]'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+          trigger_prototypes:
+            - uuid: 32000000000000000000000000000001
+              expression: 'last(/FusionCompute 8.6 by REST API/fc.datastore.disk_usage["{#DATASTORE.NAME}"])>{$FC.DS.DISK.WARN}'
+              name: 'DataStore "{#DATASTORE.NAME}": 占用率超过 {$FC.DS.DISK.WARN}%'
+              priority: HIGH
+
+      valuemaps:
+        - uuid: 40000000000000000000000000000001
+          name: 'FusionCompute host status'
+          mappings:
+            - value: '0'
+              newvalue: '正常'
+            - value: '1'
+              newvalue: '初始化'
+            - value: '2'
+              newvalue: '故障'
+            - value: '3'
+              newvalue: '未知'
+            - value: '4'
+              newvalue: '离线'
+            - value: '5'
+              newvalue: '上电中'
+            - value: '6'
+              newvalue: '下电中'
+            - value: '7'
+              newvalue: '重启中'
