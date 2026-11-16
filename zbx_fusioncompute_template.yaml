@@ -1,28 +1,29 @@
 zabbix_export:
   version: '6.0'
-  template_groups:
-    - uuid: 8f7d1e2a3b4c5d6e7f8a9b0c1d2e3f40
+  date: '2026-11-16T00:00:00Z'
+  groups:
+    - uuid: '1eb9e75adf6240c89708c8323cbd08d4'
       name: Templates/Virtualization
   templates:
-    - uuid: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
-      template: 'FusionCompute 8.6 by REST API'
-      name: 'FusionCompute 8.6 by REST API'
+    - uuid: 'adeb6da5550446ee9fde79a2de72101b'
+      template: FusionCompute_REST_API
+      name: FusionCompute_REST_API
       description: |
-        华为 FusionCompute 8.6.0 监控模板（REST API）。
-        通过外部检查脚本 fusioncompute_monitor.py 采集 VRM 数据。
-        请先在主机上配置以下宏：
-          {$FC.SCRIPT}   - 脚本绝对路径（含 python）
-          {$FC.CONFIG}   - 配置文件绝对路径
-        采集模式默认为 External Check（server 主动调用脚本）。
+        华为 FusionCompute（REST API）监控模板，适用于 Zabbix 6.0。
+
+        工作原理：全部监控项都是 External Check，由 Zabbix Server/Proxy 执行
+        ExternalScripts 目录下的 fusioncompute_monitor.py，参数见各监控项 key。
+        脚本默认读取与自己同目录的 fusioncompute.conf；如需指定其它配置文件，
+        在 key 末尾追加两个参数：,"--config","/path/to/fusioncompute.conf"
+
+        部署前提：
+          1. fusioncompute_monitor.py + fusioncompute.conf 放入 ExternalScripts 目录，
+             并 chmod +x fusioncompute_monitor.py；
+          2. conf 里 version 填 8.1（FusionCompute 8.6.0 的接口版本，不是 8.6.0）；
+          3. zabbix_server.conf 的 Timeout 建议调大到 10，避免外部检查超时。
       groups:
         - name: Templates/Virtualization
       macros:
-        - macro: '{$FC.SCRIPT}'
-          value: '/etc/zabbix/externalscripts/fusioncompute_monitor.py'
-          description: '采集脚本绝对路径'
-        - macro: '{$FC.CONFIG}'
-          value: '/etc/zabbix/externalscripts/fusioncompute.conf'
-          description: '配置文件绝对路径'
         - macro: '{$FC.HOST.CPU.WARN}'
           value: '85'
           description: '主机 CPU 占用率告警阈值(%)'
@@ -38,203 +39,470 @@ zabbix_export:
         - macro: '{$FC.DS.DISK.WARN}'
           value: '90'
           description: '数据存储占用率告警阈值(%)'
-
+        - macro: '{$FC.VM.CPU.WARN}'
+          value: '85'
+          description: '虚拟机 CPU 占用率告警阈值(%)'
+        - macro: '{$FC.VM.MEM.WARN}'
+          value: '85'
+          description: '虚拟机内存占用率告警阈值(%)'
+        - macro: '{$FC.VM.DISK.WARN}'
+          value: '90'
+          description: '虚拟机磁盘占用率告警阈值(%)'
       items:
-        # ---- 站点 ----
-        - uuid: 00000000000000000000000000000001
+        - uuid: '38f7839807114234880c33ad0890646c'
           name: 'FusionCompute: 站点状态'
           type: EXTERNAL
-          key: 'fc.site.status'
+          key: 'fusioncompute_monitor.py["--get","site.status"]'
           history: 7d
-          trends: 365d
           value_type: CHAR
-          description: 'VRM 站点状态 (normal/fault/...)'
-        - uuid: 00000000000000000000000000000002
+          description: 'VRM 站点状态，normal/fault 等'
+        - uuid: '28979f0c2ea44561997142d1be9199d9'
+          name: 'FusionCompute: 站点名称'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--get","site.name"]'
+          history: 7d
+          value_type: CHAR
+          description: '当前采集的站点名称'
+        - uuid: '87dcb52d32dd4f629d45f8e69e0af688'
           name: 'FusionCompute: 活动告警总数'
           type: EXTERNAL
-          key: 'fc.alarm.total'
+          key: 'fusioncompute_monitor.py["--get","alarm.total"]'
           history: 7d
           trends: 365d
-          value_type: FLOAT
-          units: ''
+          value_type: UNSIGNED
           description: '当前活动告警总数'
-        - uuid: 00000000000000000000000000000003
-          name: 'FusionCompute: 紧急告警数'
+        - uuid: '1b6baf251f014221a17b4932e2bd5a2a'
+          name: 'FusionCompute: 紧急告警数(1级)'
           type: EXTERNAL
-          key: 'fc.alarm.level[1]'
+          key: 'fusioncompute_monitor.py["--get","alarm.level.1"]'
           history: 7d
           trends: 365d
-          value_type: FLOAT
-          description: '紧急(1级)活动告警数'
-        - uuid: 00000000000000000000000000000004
-          name: 'FusionCompute: 重要告警数'
+          value_type: UNSIGNED
+        - uuid: '865ec1f7f4b646efb20a0cf6883a2b98'
+          name: 'FusionCompute: 重要告警数(2级)'
           type: EXTERNAL
-          key: 'fc.alarm.level[2]'
+          key: 'fusioncompute_monitor.py["--get","alarm.level.2"]'
           history: 7d
           trends: 365d
-          value_type: FLOAT
-          description: '重要(2级)活动告警数'
-        - uuid: 00000000000000000000000000000005
-          name: 'FusionCompute: 次要告警数'
+          value_type: UNSIGNED
+        - uuid: '05721940fd8b4010a83839abcf315607'
+          name: 'FusionCompute: 次要告警数(3级)'
           type: EXTERNAL
-          key: 'fc.alarm.level[3]'
+          key: 'fusioncompute_monitor.py["--get","alarm.level.3"]'
           history: 7d
           trends: 365d
-          value_type: FLOAT
-          description: '次要(3级)活动告警数'
-
+          value_type: UNSIGNED
+        - uuid: '36cd05f75a9c493084ee7aa382398f2c'
+          name: 'FusionCompute: 提示告警数(4级)'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--get","alarm.level.4"]'
+          history: 7d
+          trends: 365d
+          value_type: UNSIGNED
+        - uuid: '3f7bcdb07c5e40e3a504bcdd2968e474'
+          name: 'FusionCompute: 虚拟机总数'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--get","vm.count"]'
+          history: 7d
+          trends: 365d
+          value_type: UNSIGNED
+          description: '站点内虚拟机总数（不含模板）'
+        - uuid: '0cb1a199aee1464da8653c756d69a2bf'
+          name: 'FusionCompute: 运行中虚拟机数'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--get","vm.running"]'
+          history: 7d
+          trends: 365d
+          value_type: UNSIGNED
+          description: '状态为 running 的虚拟机数'
+        - uuid: '4b21924821b2462aa0e78cb8979f9dfc'
+          name: 'FusionCompute: 已停止虚拟机数'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--get","vm.stopped"]'
+          history: 7d
+          trends: 365d
+          value_type: UNSIGNED
+          description: '状态为 stopped 的虚拟机数'
+        - uuid: '5381afa3fec2447cab90f7f7661144e3'
+          name: 'FusionCompute: 故障虚拟机数'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--get","vm.fault"]'
+          history: 7d
+          trends: 365d
+          value_type: UNSIGNED
+          description: '状态为 unknown / fault-resuming 的虚拟机数（接口统计口径）'
       discovery_rules:
-        # ---- 主机自动发现 ----
-        - uuid: 10000000000000000000000000000001
+        - uuid: 'd1ff889aa82f46239a1f79c78cf9c810'
           name: 'FusionCompute 主机发现'
           type: EXTERNAL
-          key: 'fc.discover[hosts]'
+          key: 'fusioncompute_monitor.py["--discover","hosts"]'
           delay: 1h
-          description: '发现 FusionCompute 站点下所有主机(CNA)'
-          filter:
-            evaltype: AND
-            conditions:
-              - macro: '{#HOST.URN}'
-                value: 'urn:'
-                operator: MATCHES_REGEX
+          lifetime: 30d
+          description: '发现站点下所有主机(CNA)，发现主机状态/CPU/内存/磁盘/虚机数'
           item_prototypes:
-            - uuid: 11000000000000000000000000000001
+            - uuid: 'f12060e0dd754558bfd154bb35b47a80'
               name: 'Host "{#HOST.NAME}": 状态'
               type: EXTERNAL
-              key: 'fc.host.status["{#HOST.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","host.status","--urn","{#HOST.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               valuemap:
                 name: 'FusionCompute host status'
               description: '0正常 1初始化 2故障 3未知 4离线 5上电中 6下电中 7重启中'
-            - uuid: 11000000000000000000000000000002
+            - uuid: 'ddb1909004c2468da024e9c8879a9397'
               name: 'Host "{#HOST.NAME}": CPU占用率'
               type: EXTERNAL
-              key: 'fc.host.cpu["{#HOST.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","host.cpu","--urn","{#HOST.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               units: '%'
-            - uuid: 11000000000000000000000000000003
+            - uuid: '3096acc97587449ab0dfb9ac45e75cfc'
               name: 'Host "{#HOST.NAME}": 内存占用率'
               type: EXTERNAL
-              key: 'fc.host.mem["{#HOST.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","host.mem","--urn","{#HOST.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               units: '%'
-            - uuid: 11000000000000000000000000000004
+            - uuid: '87968d092c3345d395e74ac0a92f60a1'
               name: 'Host "{#HOST.NAME}": 磁盘占用率'
               type: EXTERNAL
-              key: 'fc.host.disk["{#HOST.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","host.disk","--urn","{#HOST.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               units: '%'
-            - uuid: 11000000000000000000000000000005
+            - uuid: '005818b3ab0f48c1bac6dc2ce41d561a'
               name: 'Host "{#HOST.NAME}": 虚拟机数量'
               type: EXTERNAL
-              key: 'fc.host.vmcount["{#HOST.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","host.vmcount","--urn","{#HOST.URN}"]'
               history: 7d
               trends: 365d
-              value_type: FLOAT
+              value_type: UNSIGNED
           trigger_prototypes:
-            - uuid: 12000000000000000000000000000001
-              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.status["{#HOST.NAME}"])=2'
+            - uuid: 'ccf39efd9af94c1388cf107ddba15b46'
+              expression: 'last(/FusionCompute_REST_API/fusioncompute_monitor.py["--get","host.status","--urn","{#HOST.URN}"])=2'
               name: 'Host "{#HOST.NAME}": 状态故障'
               priority: HIGH
-            - uuid: 12000000000000000000000000000002
-              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.cpu["{#HOST.NAME}"])>{$FC.HOST.CPU.WARN}'
+              tags:
+                - tag: scope
+                  value: availability
+            - uuid: 'cb14551817e349729beccb14f1167d69'
+              expression: 'last(/FusionCompute_REST_API/fusioncompute_monitor.py["--get","host.cpu","--urn","{#HOST.URN}"])>{$FC.HOST.CPU.WARN}'
               name: 'Host "{#HOST.NAME}": CPU占用率超过 {$FC.HOST.CPU.WARN}%'
               priority: WARNING
-            - uuid: 12000000000000000000000000000003
-              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.mem["{#HOST.NAME}"])>{$FC.HOST.MEM.WARN}'
+              tags:
+                - tag: scope
+                  value: performance
+            - uuid: 'fabb0e6e4c2e4dc081bbb5144e73e853'
+              expression: 'last(/FusionCompute_REST_API/fusioncompute_monitor.py["--get","host.mem","--urn","{#HOST.URN}"])>{$FC.HOST.MEM.WARN}'
               name: 'Host "{#HOST.NAME}": 内存占用率超过 {$FC.HOST.MEM.WARN}%'
               priority: WARNING
-            - uuid: 12000000000000000000000000000004
-              expression: 'last(/FusionCompute 8.6 by REST API/fc.host.disk["{#HOST.NAME}"])>{$FC.HOST.DISK.WARN}'
+              tags:
+                - tag: scope
+                  value: performance
+            - uuid: 'aa1ad74274dc474583ea38554f5abe04'
+              expression: 'last(/FusionCompute_REST_API/fusioncompute_monitor.py["--get","host.disk","--urn","{#HOST.URN}"])>{$FC.HOST.DISK.WARN}'
               name: 'Host "{#HOST.NAME}": 磁盘占用率超过 {$FC.HOST.DISK.WARN}%'
               priority: WARNING
+              tags:
+                - tag: scope
+                  value: capacity
           graph_prototypes:
-            - uuid: 13000000000000000000000000000001
+            - uuid: 'a8299689276f4dcba9e5b0c2208d0f48'
               name: 'Host "{#HOST.NAME}": CPU/内存占用率'
               graph_items:
                 - color: '1A7C11'
                   item:
-                    host: 'FusionCompute 8.6 by REST API'
-                    key: 'fc.host.cpu["{#HOST.NAME}"]'
+                    host: FusionCompute_REST_API
+                    key: 'fusioncompute_monitor.py["--get","host.cpu","--urn","{#HOST.URN}"]'
                 - color: 'F63100'
                   item:
-                    host: 'FusionCompute 8.6 by REST API'
-                    key: 'fc.host.mem["{#HOST.NAME}"]'
-
-        # ---- 集群自动发现 ----
-        - uuid: 10000000000000000000000000000002
+                    host: FusionCompute_REST_API
+                    key: 'fusioncompute_monitor.py["--get","host.mem","--urn","{#HOST.URN}"]'
+        - uuid: '0c97cd70533747f89a9663c0fe023463'
           name: 'FusionCompute 集群发现'
           type: EXTERNAL
-          key: 'fc.discover[clusters]'
+          key: 'fusioncompute_monitor.py["--discover","clusters"]'
           delay: 1h
-          description: '发现 FusionCompute 站点下所有集群'
-          filter:
-            evaltype: AND
-            conditions:
-              - macro: '{#CLUSTER.URN}'
-                value: 'urn:'
-                operator: MATCHES_REGEX
+          lifetime: 30d
+          description: '发现站点下所有集群，发现 CPU/磁盘占用率'
           item_prototypes:
-            - uuid: 21000000000000000000000000000001
+            - uuid: '2f1d56d0c3fb4626a19545d43e075859'
               name: 'Cluster "{#CLUSTER.NAME}": CPU占用率'
               type: EXTERNAL
-              key: 'fc.cluster.cpu_usage["{#CLUSTER.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","cluster.cpu","--urn","{#CLUSTER.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               units: '%'
-            - uuid: 21000000000000000000000000000002
+            - uuid: '6253d9a763ef42cc96c65cf572eedf46'
               name: 'Cluster "{#CLUSTER.NAME}": 磁盘占用率'
               type: EXTERNAL
-              key: 'fc.cluster.logic_disk_usage["{#CLUSTER.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","cluster.disk","--urn","{#CLUSTER.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               units: '%'
           trigger_prototypes:
-            - uuid: 22000000000000000000000000000001
-              expression: 'last(/FusionCompute 8.6 by REST API/fc.cluster.cpu_usage["{#CLUSTER.NAME}"])>{$FC.CLUSTER.CPU.WARN}'
+            - uuid: 'a55dbc0603e84148acad111df06f5392'
+              expression: 'last(/FusionCompute_REST_API/fusioncompute_monitor.py["--get","cluster.cpu","--urn","{#CLUSTER.URN}"])>{$FC.CLUSTER.CPU.WARN}'
               name: 'Cluster "{#CLUSTER.NAME}": CPU占用率超过 {$FC.CLUSTER.CPU.WARN}%'
               priority: WARNING
-
-        # ---- 数据存储自动发现 ----
-        - uuid: 10000000000000000000000000000003
+              tags:
+                - tag: scope
+                  value: performance
+        - uuid: '3478569ef1de42b1994b0a388d9bf120'
           name: 'FusionCompute 数据存储发现'
           type: EXTERNAL
-          key: 'fc.discover[datastores]'
+          key: 'fusioncompute_monitor.py["--discover","datastores"]'
           delay: 1h
-          description: '发现 FusionCompute 站点下所有数据存储'
-          filter:
-            evaltype: AND
-            conditions:
-              - macro: '{#DATASTORE.URN}'
-                value: 'urn:'
-                operator: MATCHES_REGEX
+          lifetime: 30d
+          description: '发现站点下所有数据存储，发现占用率'
           item_prototypes:
-            - uuid: 31000000000000000000000000000001
+            - uuid: '4dfe02037ce144c4b2ed5c91c4bbf261'
               name: 'DataStore "{#DATASTORE.NAME}": 占用率'
               type: EXTERNAL
-              key: 'fc.datastore.disk_usage["{#DATASTORE.NAME}"]'
+              key: 'fusioncompute_monitor.py["--get","ds.disk","--urn","{#DATASTORE.URN}"]'
               history: 7d
               trends: 365d
               value_type: FLOAT
               units: '%'
           trigger_prototypes:
-            - uuid: 32000000000000000000000000000001
-              expression: 'last(/FusionCompute 8.6 by REST API/fc.datastore.disk_usage["{#DATASTORE.NAME}"])>{$FC.DS.DISK.WARN}'
+            - uuid: 'eece24bf01c74a348b2b82a5c01a7e77'
+              expression: 'last(/FusionCompute_REST_API/fusioncompute_monitor.py["--get","ds.disk","--urn","{#DATASTORE.URN}"])>{$FC.DS.DISK.WARN}'
               name: 'DataStore "{#DATASTORE.NAME}": 占用率超过 {$FC.DS.DISK.WARN}%'
               priority: HIGH
-
+              tags:
+                - tag: scope
+                  value: capacity
+        - uuid: '590d01d9083547ee903525c7a94140b9'
+          name: 'FusionCompute 虚拟机发现'
+          type: EXTERNAL
+          key: 'fusioncompute_monitor.py["--discover","vms"]'
+          delay: 1h
+          lifetime: 30d
+          description: '发现站点下所有虚拟机（isTemplate=false，不含模板）。每台虚机只有 1 个外部检查主监控项，其余信息由依赖项拆分。'
+          item_prototypes:
+            - uuid: '2431acc4f7be402ea8191f8f25a90aa5'
+              name: 'VM "{#VM.NAME}": 基础信息(JSON)'
+              type: EXTERNAL
+              key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              delay: 2m
+              history: 1d
+              value_type: TEXT
+              description: '主监控项：一次采集返回该虚机的名称/IP/状态/CPU/内存/磁盘等 JSON。下面各依赖项都从这一段 JSON 取值，不再单独发起外部检查。'
+            - uuid: '0096f52ae5024286b65361914ac0da46'
+              name: 'VM "{#VM.NAME}": 名称'
+              type: DEPENDENT
+              key: 'vm.name["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              value_type: CHAR
+              description: '虚拟机名称（每次采集实时刷新，不是发现时的快照）'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.name'
+            - uuid: 'c094d778bc33430a820042e485594b31'
+              name: 'VM "{#VM.NAME}": IP地址'
+              type: DEPENDENT
+              key: 'vm.ip["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              value_type: CHAR
+              description: '虚拟机第一个网卡 IP（未装 Tools 或未配置时为空）'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.ip'
+            - uuid: '2f736ad87bd745ba89c67dba290d2459'
+              name: 'VM "{#VM.NAME}": 状态'
+              type: DEPENDENT
+              key: 'vm.status["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              valuemap:
+                name: 'FusionCompute vm status'
+              description: '0运行中 1已停止 2已休眠 3已暂停 4不明确 5创建中 6启动中 7停止中 8删除中 9迁移中 10故障恢复中 11休眠中 12回收中 13故障'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.status_code'
+            - uuid: 'b0be83ea0d4d474ab47768583a507a59'
+              name: 'VM "{#VM.NAME}": CPU占用率'
+              type: DEPENDENT
+              key: 'vm.cpu["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+              description: '虚拟机 CPU 占用率；指标不可用时为 -1'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.cpu_usage'
+            - uuid: '7bae4ecaace34e5590d47bcd00b7d21a'
+              name: 'VM "{#VM.NAME}": 内存占用率'
+              type: DEPENDENT
+              key: 'vm.mem["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+              description: '虚拟机内存占用率；指标不可用时为 -1'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.mem_usage'
+            - uuid: '5efaa17b3fc54f4b979c827f1b898a39'
+              name: 'VM "{#VM.NAME}": 磁盘占用率'
+              type: DEPENDENT
+              key: 'vm.disk["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: '%'
+              description: '虚拟机磁盘占用率；指标不可用时为 -1'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.disk_usage'
+            - uuid: '877779c79d8741ed86d52206cef49988'
+              name: 'VM "{#VM.NAME}": vCPU数'
+              type: DEPENDENT
+              key: 'vm.vcpu["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: UNSIGNED
+              description: '虚拟机配置的 vCPU 数量'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.vcpu'
+            - uuid: '5c8abc1c4ed245ffae6459d169eaee97'
+              name: 'VM "{#VM.NAME}": 内存大小'
+              type: DEPENDENT
+              key: 'vm.mem_mb["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: UNSIGNED
+              units: 'MB'
+              description: '虚拟机配置的内存大小'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.mem_mb'
+            - uuid: '088f07e390b34422a426d5920c35db80'
+              name: 'VM "{#VM.NAME}": 磁盘总容量'
+              type: DEPENDENT
+              key: 'vm.disk_total_gb["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              trends: 365d
+              value_type: FLOAT
+              units: 'GB'
+              description: '虚拟机所有磁盘容量之和（配置值）'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.disk_total_gb'
+            - uuid: 'a920429df53b4f4d9d18464e04a60f9a'
+              name: 'VM "{#VM.NAME}": 所在主机'
+              type: DEPENDENT
+              key: 'vm.host["{#VM.URN}"]'
+              delay: '0'
+              history: 7d
+              value_type: CHAR
+              description: '虚拟机当前所在的主机（CNA）'
+              master_item:
+                key: 'fusioncompute_monitor.py["--get","vm.info","--urn","{#VM.URN}"]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.host'
+          trigger_prototypes:
+            - uuid: '9d242fb281814d9191116582d37ab7d3'
+              expression: 'last(/FusionCompute_REST_API/vm.status["{#VM.URN}"])=4'
+              name: 'VM "{#VM.NAME}": 状态不明确'
+              priority: WARNING
+              description: '虚拟机被 VRM 报告为 unknown（可能失联或状态同步异常）'
+              tags:
+                - tag: scope
+                  value: availability
+            - uuid: 'e791dcbc6aff49fabab7cbbbc238ec6e'
+              expression: 'last(/FusionCompute_REST_API/vm.status["{#VM.URN}"])=13'
+              name: 'VM "{#VM.NAME}": 状态故障'
+              priority: HIGH
+              tags:
+                - tag: scope
+                  value: availability
+            - uuid: 'f12b68f2768145fbb81858ecf452225b'
+              expression: 'last(/FusionCompute_REST_API/vm.cpu["{#VM.URN}"])>{$FC.VM.CPU.WARN}'
+              name: 'VM "{#VM.NAME}": CPU占用率超过 {$FC.VM.CPU.WARN}%'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: performance
+            - uuid: '19966fdd47a945a699dfbf05b4809c90'
+              expression: 'last(/FusionCompute_REST_API/vm.mem["{#VM.URN}"])>{$FC.VM.MEM.WARN}'
+              name: 'VM "{#VM.NAME}": 内存占用率超过 {$FC.VM.MEM.WARN}%'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: performance
+            - uuid: '04048d14960648c0a83da3d1e1f89adb'
+              expression: 'last(/FusionCompute_REST_API/vm.disk["{#VM.URN}"])>{$FC.VM.DISK.WARN}'
+              name: 'VM "{#VM.NAME}": 磁盘占用率超过 {$FC.VM.DISK.WARN}%'
+              priority: WARNING
+              tags:
+                - tag: scope
+                  value: capacity
+          graph_prototypes:
+            - uuid: '37f16bfb887045ad9184e92f144b8141'
+              name: 'VM "{#VM.NAME}": CPU/内存/磁盘占用率'
+              graph_items:
+                - color: '1A7C11'
+                  item:
+                    host: FusionCompute_REST_API
+                    key: 'vm.cpu["{#VM.URN}"]'
+                - color: 'F63100'
+                  item:
+                    host: FusionCompute_REST_API
+                    key: 'vm.mem["{#VM.URN}"]'
+                - color: '2774A4'
+                  item:
+                    host: FusionCompute_REST_API
+                    key: 'vm.disk["{#VM.URN}"]'
       valuemaps:
-        - uuid: 40000000000000000000000000000001
+        - uuid: '3db7b2774df04af3b250aeed7264d653'
           name: 'FusionCompute host status'
           mappings:
             - value: '0'
@@ -253,3 +521,38 @@ zabbix_export:
               newvalue: '下电中'
             - value: '7'
               newvalue: '重启中'
+            - value: '-1'
+              newvalue: '未采集到'
+        - uuid: '4a4aea5767d047358cae617e66e3b535'
+          name: 'FusionCompute vm status'
+          mappings:
+            - value: '0'
+              newvalue: '运行中'
+            - value: '1'
+              newvalue: '已停止'
+            - value: '2'
+              newvalue: '已休眠'
+            - value: '3'
+              newvalue: '已暂停'
+            - value: '4'
+              newvalue: '不明确'
+            - value: '5'
+              newvalue: '创建中'
+            - value: '6'
+              newvalue: '启动中'
+            - value: '7'
+              newvalue: '停止中'
+            - value: '8'
+              newvalue: '删除中'
+            - value: '9'
+              newvalue: '迁移中'
+            - value: '10'
+              newvalue: '故障恢复中'
+            - value: '11'
+              newvalue: '休眠中'
+            - value: '12'
+              newvalue: '回收中'
+            - value: '13'
+              newvalue: '故障'
+            - value: '-1'
+              newvalue: '未采集到'
